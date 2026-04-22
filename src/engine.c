@@ -9,10 +9,9 @@ static inline long long now_ns() {
     return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
-/*
- * Deterministic workload (stable CPU cost)
- * IMPORTANT: no timing inside here
- */
+/* ---------------------------
+ * Deterministic workload
+ * --------------------------- */
 static inline int process_event(int i) {
     volatile int x = i;
 
@@ -26,15 +25,15 @@ static inline int process_event(int i) {
 }
 
 #define N 1000000
+#define RUNS 5
 
-void engine_run(void) {
-    printf("Engine started (Phase 1 - batch benchmark)\n");
+/* ---------------------------
+ * Benchmark runner
+ * --------------------------- */
+static void run_benchmark(long long *out_time) {
 
     volatile int sink = 0;
 
-    /* ---------------------------
-     * PURE batch timing section
-     * --------------------------- */
     long long start = now_ns();
 
     for (int i = 0; i < N; i++) {
@@ -43,23 +42,59 @@ void engine_run(void) {
 
     long long end = now_ns();
 
-    long long total_time = end - start;
+    *out_time = end - start;
 
-    /* ---------------------------
-     * Core metrics
-     * --------------------------- */
-    double avg_ns = (double)total_time / (double)N;
-    double throughput_m = (double)N / (double)total_time * 1000.0;
-
-    printf("Processed %d events\n", N);
-    printf("Total time: %lld ns\n", total_time);
-    printf("Avg per event: %.2f ns\n", avg_ns);
-    printf("Throughput: %.2f M events/sec\n", throughput_m);
-
-    /* ---------------------------
-     * Optional sanity check
-     * --------------------------- */
     if (sink == 42) {
         printf("impossible\n");
     }
+}
+
+void engine_run(void) {
+
+    printf("C Systems Performance Lab - Phase 1 (COMPLETE)\n");
+    printf("Engine started\n");
+
+    /* ---------------------------
+     * Warmup (important for CPU cache + branch predictor)
+     * --------------------------- */
+    for (int i = 0; i < 2; i++) {
+        long long tmp;
+        run_benchmark(&tmp);
+    }
+
+    /* ---------------------------
+     * Measured runs
+     * --------------------------- */
+    long long times[RUNS];
+
+    for (int i = 0; i < RUNS; i++) {
+        run_benchmark(&times[i]);
+    }
+
+    /* ---------------------------
+     * Stats: min / max / avg
+     * --------------------------- */
+    long long min = times[0];
+    long long max = times[0];
+    long long sum = 0;
+
+    for (int i = 0; i < RUNS; i++) {
+        if (times[i] < min) min = times[i];
+        if (times[i] > max) max = times[i];
+        sum += times[i];
+    }
+
+    double avg = (double)sum / RUNS;
+    double avg_per_event = avg / N;
+    double throughput = (double)N / avg * 1000.0;
+
+    printf("\n--- Phase 1 Results ---\n");
+    printf("Runs: %d (N=%d events each)\n", RUNS, N);
+
+    printf("Min time: %lld ns\n", min);
+    printf("Max time: %lld ns\n", max);
+    printf("Avg time: %.2f ns\n", avg);
+
+    printf("\nAvg per event: %.2f ns\n", avg_per_event);
+    printf("Throughput: %.2f M events/sec\n", throughput);
 }
