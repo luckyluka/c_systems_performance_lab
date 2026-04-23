@@ -41,39 +41,49 @@ The goal is to measure raw CPU execution characteristics under controlled condit
 
 ## ⚙️ System Design
 
-### 1. Deterministic workload
+### 1. Binary Event Format
 
-A fixed CPU-bound function using:
+Events are represented as a compact structure:
+```c
+typedef struct {
+    uint32_t id;
+    uint32_t payload;
+} event_t;
+```
+This ensures a fixed memory footprint and fast serialization/deserialization.
+
+### 2. Replay System
+
+Instead of generating data on the fly, the system replays events from a binary file (`events.bin`).
+- Pre-loads all events into memory to avoid I/O interference during measurement.
+- Ensures identical input across different benchmarking runs.
+
+### 3. Deterministic Workload
+
+A fixed CPU-bound function processing replayed events:
 - integer arithmetic
 - bitwise operations
 - deterministic loops
 
-This ensures:
-- no I/O effects
-- no allocation overhead
-- stable execution cost per event
+This ensures stable execution cost per event.
 
 ---
 
-### 2. Batch execution model
+### 4. Batch execution model
 
 - N = 1,000,000 events per run
 - multiple runs per benchmark cycle
-- optional warmup phase
-
-This ensures stable CPU state before measurement.
+- warmup phase to prime CPU cache and branch predictor.
 
 ---
 
-### 3. Measurement methodology
+### 5. Measurement methodology
 
-Phase 1 uses **batch timing**:
+Phase 1 uses **Cycle-Accurate Timing** via `rdtsc` (with `clock_gettime` fallback):
 
-- measure total execution time of N events
-- derive per-event cost: total_time / N
-- compute run-level statistics
-
-This avoids distortion from per-event instrumentation overhead.
+- Measures total batch time (ns) for throughput.
+- Measures per-event latency in CPU cycles.
+- Computes statistical distributions (Min, P50, P99, Max).
 
 ---
 
@@ -84,34 +94,37 @@ Each run produces:
 - Total execution time (ns)
 - Average time per event (ns)
 - Throughput (M events/sec)
-- Run stability (min / max / avg across runs)
+- Latency Histogram (Cycles): Min, P50 (median), P99 (tail), Max
 
 ---
 
 ## 🧠 Methodology Notes
 
-### Why batch timing?
+### Why rdtsc?
 
-Per-event timing introduces:
-- function call overhead
-- timer resolution noise
-- cache perturbation
+`rdtsc` provides the highest possible resolution on x86 systems, allowing us to measure the cost of processing a single event (often < 100 cycles) with minimal overhead.
 
-Batch timing ensures measurement overhead does not distort results.
+### Why p99?
 
----
-
-### Why multiple runs?
-
-Single runs are unreliable due to:
-- CPU frequency scaling
-- OS scheduling noise
-- background system activity
-
-Multiple runs provide:
-- stability validation
-- variance estimation
+Average latency hides tail performance issues. P99 latency highlights how the system behaves under worst-case scenarios, such as cache misses or OS interrupts.
 
 ---
 
 ## 📈 Example Output
+
+```text
+--- Phase 1 Results ---
+Runs: 5 (N=1000000 events each)
+Min time: 37092383 ns
+Max time: 45869788 ns
+Avg time: 38947695.40 ns
+
+Avg per event: 38.95 ns
+Throughput: 25.68 M events/sec
+
+--- Latency Histogram (Cycles) ---
+Min: 25
+P50: 30
+P99: 35
+Max: 168054
+```
