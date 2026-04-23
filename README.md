@@ -36,16 +36,16 @@ The focus is not on features, but on:
 ## 🧭 1-Year Roadmap
 
 ### 🥇 Phase 1 — Deterministic Core (Months 1–3)
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 
 Build a CPU-bound event processing engine.
 
 Focus:
-- binary event format
-- deterministic execution loop
-- replay system (file-based input)
-- cycle-level timing (rdtsc or equivalent)
-- latency histogram (p50/p99/max)
+- binary event format (COMPLETED)
+- deterministic execution loop (COMPLETED)
+- replay system (file-based input) (COMPLETED)
+- cycle-level timing (rdtsc or equivalent) (COMPLETED)
+- latency histogram (p50/p99/max) (COMPLETED)
 
 Outcome:
 > Understand and measure raw CPU performance behavior
@@ -119,6 +119,7 @@ Each stage measures:
 
 ```text
 Phase 1: Deterministic Core
-- Event loop implementation: IN PROGRESS
-- Replay system: NOT STARTED
-- Latency measurement: NOT STARTED
+- Event loop implementation: COMPLETE
+- Replay system: COMPLETE
+- Latency measurement: COMPLETE
+```
